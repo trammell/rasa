@@ -1,20 +1,29 @@
-import fcntl
-import os
 import sys
 from typing import Any, Text, NoReturn
 
 import rasa.shared.utils.io
 
 
-def print_blocking(string) -> None:
-    """Save fcntl settings and restore them after print()."""
-    save = fcntl.fcntl(sys.stdout.fileno(), fcntl.F_GETFL)
-    new = save & ~os.O_NONBLOCK
-    fcntl.fcntl(sys.stdout.fileno(), fcntl.F_SETFL, new)
-    print(string)
-    fcntl.fcntl(sys.stdout.fileno(), fcntl.F_SETFL, save)
-    sys.stdout.flush()
+def print_blocking(message) -> None:
+    """Save fcntl settings and restore them after print().
 
+    Args:
+        message: The message to be printed.
+    """
+    try:
+        # this code block is intended to work around a BlockingIOError seen
+        # intermittently under mysterious circumstances, by the light of a
+        # full moon
+        from fcntl import fcntl, F_GETFL, F_SETFL
+        from os import O_NONBLOCK 
+        save = fcntl(sys.stdout.fileno(), F_GETFL)
+        new = save & ~O_NONBLOCK
+        fcntl(sys.stdout.fileno(), F_SETFL, new)
+        print(message)
+        fcntl(sys.stdout.fileno(), F_SETFL, save)
+        sys.stdout.flush()
+    except ImportError:
+        print(message)
 
 def print_color(*args: Any, color: Text) -> None:
     """Print the given arguments to STDOUT in the specified color.
